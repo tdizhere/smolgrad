@@ -83,19 +83,27 @@ class Value:
         out._backward = _backward
         return self if self.data >= 0 else -self
     def backward(self):
-
-      if self.requires_grad: 
-          # topological order all of the children in the graph
+        if self.requires_grad:
+            # topological order all of the children in the graph — iterative version
             topo = []
             visited = set()
-            def build_topo(v):
-                if v not in visited:
-                    visited.add(v)
-                    for child in v._prev:
-                        build_topo(child)
-                    topo.append(v)
+    
+            def build_topo(root):
+                stack = [(root, iter(root._prev))]
+                visited.add(root)
+                while stack:
+                    node, children = stack[-1]
+                    try:
+                        child = next(children)
+                        if child not in visited:
+                            visited.add(child)
+                            stack.append((child, iter(child._prev)))
+                    except StopIteration:
+                        topo.append(node)
+                        stack.pop()
+    
             build_topo(self)
-
+    
             # go one variable at a time and apply the chain rule to get its gradient
             self.grad = 1
             for v in reversed(topo):
